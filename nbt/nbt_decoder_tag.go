@@ -1,10 +1,7 @@
 package nbt
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"math"
 )
 
 const (
@@ -21,92 +18,18 @@ const (
 	TagCompound  = 10
 )
 
-type decoder struct {
-	r       io.Reader
-	buf     []byte
-	bufOff  int
-	bufSize int
-}
+type Compound map[string]*Tag
 
-type tag struct {
+type List []*Tag
+
+type Tag struct {
 	Type  int
 	Name  []byte
 	Value any
 }
 
-func newDecoder(bs []byte) *decoder {
-	return &decoder{
-		r:       bytes.NewReader(bs),
-		buf:     make([]byte, 512),
-		bufOff:  0,
-		bufSize: 0,
-	}
-}
-
-func (d *decoder) readByte() (byte, error) {
-	if d.bufOff >= d.bufSize {
-		n, err := d.r.Read(d.buf)
-
-		if err != nil && err != io.EOF {
-			return 0, err
-		}
-
-		d.bufSize = n
-		d.bufOff = 0
-	}
-
-	if d.bufSize == 0 {
-		return 0, io.EOF
-	}
-
-	b := d.buf[d.bufOff]
-	d.bufOff++
-
-	return b, nil
-}
-
-func (d *decoder) readString(dst *[]byte) error {
-	size, err := d.readBEUint64(2)
-
-	if err != nil {
-		return err
-	}
-
-	res := make([]byte, 0, size)
-
-	for range size {
-		b, err := d.readByte()
-
-		if err != nil {
-			return err
-		}
-
-		res = append(res, b)
-	}
-
-	*dst = res
-
-	return nil
-}
-
-func (d *decoder) readBEUint64(n int) (uint64, error) {
-	var v uint64
-
-	for i := n; i > 0; i-- {
-		b, err := d.readByte()
-
-		if err != nil {
-			return 0, err
-		}
-
-		v |= uint64(b) << (8 * (i - 1))
-	}
-
-	return v, nil
-}
-
-func (d *decoder) readByteTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readByteTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagByte,
 	}
 
@@ -116,19 +39,19 @@ func (d *decoder) readByteTag(named bool) (*tag, error) {
 		}
 	}
 
-	b, err := d.readByte()
+	var v int8
 
-	if err != nil {
+	if err := d.readBE(&v); err != nil {
 		return nil, err
 	}
 
-	t.Value = int8(b)
+	t.Value = v
 
 	return &t, nil
 }
 
-func (d *decoder) readShortTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readShortTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagShort,
 	}
 
@@ -138,19 +61,19 @@ func (d *decoder) readShortTag(named bool) (*tag, error) {
 		}
 	}
 
-	v, err := d.readBEUint64(2)
+	var v int16
 
-	if err != nil {
+	if err := d.readBE(&v); err != nil {
 		return nil, err
 	}
 
-	t.Value = int16(v)
+	t.Value = v
 
 	return &t, nil
 }
 
-func (d *decoder) readIntTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readIntTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagInt,
 	}
 
@@ -160,19 +83,19 @@ func (d *decoder) readIntTag(named bool) (*tag, error) {
 		}
 	}
 
-	v, err := d.readBEUint64(4)
+	var v int32
 
-	if err != nil {
+	if err := d.readBE(&v); err != nil {
 		return nil, err
 	}
 
-	t.Value = int32(v)
+	t.Value = v
 
 	return &t, nil
 }
 
-func (d *decoder) readLongTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readLongTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagLong,
 	}
 
@@ -182,19 +105,19 @@ func (d *decoder) readLongTag(named bool) (*tag, error) {
 		}
 	}
 
-	v, err := d.readBEUint64(8)
+	var v int64
 
-	if err != nil {
+	if err := d.readBE(&v); err != nil {
 		return nil, err
 	}
 
-	t.Value = int64(v)
+	t.Value = v
 
 	return &t, nil
 }
 
-func (d *decoder) readFloatTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readFloatTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagFloat,
 	}
 
@@ -204,19 +127,19 @@ func (d *decoder) readFloatTag(named bool) (*tag, error) {
 		}
 	}
 
-	v, err := d.readBEUint64(4)
+	var v float32
 
-	if err != nil {
+	if err := d.readBE(&v); err != nil {
 		return nil, err
 	}
 
-	t.Value = math.Float32frombits(uint32(v))
+	t.Value = v
 
 	return &t, nil
 }
 
-func (d *decoder) readDoubleTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readDoubleTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagDouble,
 	}
 
@@ -226,19 +149,19 @@ func (d *decoder) readDoubleTag(named bool) (*tag, error) {
 		}
 	}
 
-	v, err := d.readBEUint64(8)
+	var v float64
 
-	if err != nil {
+	if err := d.readBE(&v); err != nil {
 		return nil, err
 	}
 
-	t.Value = math.Float64frombits(v)
+	t.Value = v
 
 	return &t, nil
 }
 
-func (d *decoder) readByteArrayTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readByteArrayTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagByteArray,
 	}
 
@@ -273,8 +196,8 @@ func (d *decoder) readByteArrayTag(named bool) (*tag, error) {
 	return &t, nil
 }
 
-func (d *decoder) readStringTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readStringTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagString,
 	}
 
@@ -290,13 +213,13 @@ func (d *decoder) readStringTag(named bool) (*tag, error) {
 		return nil, err
 	}
 
-	t.Value = res
+	t.Value = string(res)
 
 	return &t, nil
 }
 
-func (d *decoder) readListTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readListTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagList,
 	}
 
@@ -312,13 +235,15 @@ func (d *decoder) readListTag(named bool) (*tag, error) {
 		return nil, err
 	}
 
-	listSize, err := d.readBEUint64(4)
+	var listSize uint32
 
-	if err != nil {
+	if err := d.readBE(&listSize); err != nil {
 		return nil, err
 	}
 
-	res := make([]any, 0, listSize)
+	t.Value = listSize
+
+	res := make(List, 0, listSize)
 
 	for range listSize {
 		listItemTag, err := d.readNextTag(int(listType))
@@ -335,8 +260,8 @@ func (d *decoder) readListTag(named bool) (*tag, error) {
 	return &t, nil
 }
 
-func (d *decoder) readCompoundTag(named bool) (*tag, error) {
-	t := tag{
+func (d *decoder) readCompoundTag(named bool) (*Tag, error) {
+	t := Tag{
 		Type: TagCompound,
 	}
 
@@ -346,7 +271,7 @@ func (d *decoder) readCompoundTag(named bool) (*tag, error) {
 		}
 	}
 
-	res := make(map[string]any)
+	res := make(Compound)
 
 	for {
 		nextTag, err := d.readNextTag(-1)
@@ -357,9 +282,7 @@ func (d *decoder) readCompoundTag(named bool) (*tag, error) {
 			return nil, err
 		}
 
-		tt := nextTag.(*tag)
-
-		res[string(tt.Name)] = nextTag
+		res[string(nextTag.Name)] = nextTag
 	}
 
 	t.Value = res
@@ -367,7 +290,7 @@ func (d *decoder) readCompoundTag(named bool) (*tag, error) {
 	return &t, nil
 }
 
-func (d *decoder) readNextTag(tagType int) (any, error) {
+func (d *decoder) readNextTag(tagType int) (*Tag, error) {
 	named := false
 
 	if tagType == -1 {
@@ -405,6 +328,6 @@ func (d *decoder) readNextTag(tagType int) (any, error) {
 	case TagCompound:
 		return d.readCompoundTag(named)
 	default:
-		return nil, fmt.Errorf("unknown tag type: %d", tagType)
+		return nil, fmt.Errorf("unknown Tag type: %d", tagType)
 	}
 }
