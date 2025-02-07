@@ -34,7 +34,7 @@ func (d *decoder) readByte() (b byte, err error) {
 func (d *decoder) readString(dst *[]byte) (err error) {
 	var size int16
 
-	if _, err = d.readBE(&size); err != nil {
+	if err = d.readBE(&size); err != nil {
 		return err
 	}
 
@@ -55,8 +55,8 @@ func (d *decoder) readString(dst *[]byte) (err error) {
 	return
 }
 
-func (d *decoder) readBE(v any) (s int, err error) {
-	s = binary.Size(v)
+func (d *decoder) readBE(v any) (err error) {
+	s := binary.Size(v)
 
 	d.numBuf.Reset()
 
@@ -88,7 +88,7 @@ func readNumericTag[T interface {
 
 	var v T
 
-	if _, err = d.readBE(&v); err != nil {
+	if err = d.readBE(&v); err != nil {
 		return
 	}
 
@@ -154,23 +154,22 @@ func readArrayTag[T interface{ byte | int32 | int64 }](d *decoder, named bool) (
 		}
 	}
 
-	it, err := d.readIntTag(false)
+	var sizeTag *Tag
+
+	sizeTag, err = d.readIntTag(false)
 
 	if err != nil {
 		return
 	}
 
-	size := (it.Value).(int32)
+	size := (sizeTag.Value).(int32)
 
 	res := make([]T, 0, size)
 
 	var v T
-	s := 0
 
-	for i := 0; i < int(size); i += s {
-		s, err = d.readBE(&v)
-
-		if err != nil {
+	for range size {
+		if err = d.readBE(&v); err != nil {
 			return
 		}
 
@@ -247,7 +246,7 @@ func (d *decoder) readListTag(named bool) (tag *Tag, err error) {
 
 	var listSize int32
 
-	if _, err = d.readBE(&listSize); err != nil {
+	if err = d.readBE(&listSize); err != nil {
 		return
 	}
 
@@ -320,7 +319,7 @@ func (d *decoder) readNextTag(tagType int) (tag *Tag, err error) {
 
 	switch tagType {
 	case TypeEnd:
-		return nil, nil
+		return
 	case TypeByte:
 		return d.readByteTag(named)
 	case TypeShort:

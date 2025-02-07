@@ -302,6 +302,10 @@ func UnmarshalReader(r io.Reader, v any) error {
 		return err
 	}
 
+	if t == nil {
+		return nil
+	}
+
 	return unmarshalTag(v, &Tag{
 		Type: TypeCompound,
 		Name: nil,
