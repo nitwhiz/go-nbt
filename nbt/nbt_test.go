@@ -1,8 +1,7 @@
 package nbt
 
 import (
-	"bytes"
-	"io"
+	"math"
 	"os"
 	"testing"
 )
@@ -39,30 +38,6 @@ type helloWorldTest struct {
 	} `nbt:"hello world"`
 }
 
-func TestUnmarshalBigTest(t *testing.T) {
-	f, err := os.Open("../testdata/bigtest.nbt")
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer f.Close()
-
-	bs, err := io.ReadAll(f)
-
-	if err != nil {
-		t.Fatal("error reading file", err)
-	}
-
-	bt := bigTest{}
-
-	if err := Unmarshal(bs, &bt); err != nil {
-		t.Fatal("error unmarshalling", err)
-	}
-
-	t.Logf("%+v", bt)
-}
-
 func TestUnmarshalHelloWorld(t *testing.T) {
 	f, err := os.Open("../testdata/hello_world.nbt")
 
@@ -70,131 +45,147 @@ func TestUnmarshalHelloWorld(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer f.Close()
-
-	bs, err := io.ReadAll(f)
-
-	if err != nil {
-		t.Fatal("error reading file", err)
-	}
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 
 	ht := helloWorldTest{}
 
-	if err := Unmarshal(bs, &ht); err != nil {
+	if err := UnmarshalReader(f, &ht); err != nil {
 		t.Fatal("error unmarshalling", err)
 	}
 
-	t.Logf("%+v", ht)
+	if ht.HelloWorld.Name != "Bananrama" {
+		t.Fatalf("expected \"Bananrama\", got \"%s\"", ht.HelloWorld.Name)
+	}
 }
 
-func TestEncode(t *testing.T) {
+func TestUnmarshalBigTest(t *testing.T) {
 	f, err := os.Open("../testdata/bigtest.nbt")
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 
-	bs, err := io.ReadAll(f)
+	bt := bigTest{}
 
-	if err != nil {
-		t.Fatal("error reading file", err)
+	if err := UnmarshalReader(f, &bt); err != nil {
+		t.Fatal("error unmarshalling", err)
 	}
 
-	d := newDecoder(bs)
-
-	res, err := d.readNextTag(-1)
-
-	if err != nil {
-		t.Fatal(err)
+	if bt.Level.ShortTest != 32767 {
+		t.Fatalf("expected 32767, got %d", bt.Level.ShortTest)
 	}
 
-	buf := new(bytes.Buffer)
-	e := newEncoder(buf)
-
-	if err := e.encode(res, true); err != nil {
-		t.Fatal(err)
+	if bt.Level.LongTest != 9223372036854775807 {
+		t.Fatalf("expected 9223372036854775807, got %d", bt.Level.LongTest)
 	}
 
-	bs2 := buf.Bytes()
-
-	d2 := newDecoder(bs2)
-
-	res2, err := d2.readNextTag(-1)
-
-	if err != nil {
-		t.Fatal(err)
+	if bt.Level.FloatTest != 0.49823147 {
+		t.Fatalf("expected 0.49823147, got %f", bt.Level.FloatTest)
 	}
 
-	t.Logf("%+v", bs)
-	t.Logf("%+v", bs2)
-	t.Logf("%+v", res)
-	t.Logf("%+v", res2)
+	if bt.Level.DoubleTest != 0.4931287132182315 {
+		t.Fatalf("expected 0.4931287132182315, got %f", bt.Level.DoubleTest)
+	}
+
+	if bt.Level.StringTest != "HELLO WORLD THIS IS A TEST STRING ÅÄÖ!" {
+		t.Fatalf("expected \"HELLO WORLD THIS IS A TEST STRING ÅÄÖ!\", got \"%s\"", bt.Level.StringTest)
+	}
+
+	if bt.Level.IntTest != 2147483647 {
+		t.Fatalf("expected 2147483647, got %d", bt.Level.IntTest)
+	}
+
+	if bt.Level.ByteTest != 127 {
+		t.Fatalf("expected 127, got %d", bt.Level.ByteTest)
+	}
+
+	if len(bt.Level.ByteArrayTest) != 1000 {
+		t.Fatalf("expected len=1000, got len=%d", len(bt.Level.ByteArrayTest))
+	}
+
+	for n := range 1000 {
+		v := (n*n*255 + n*7) % 100
+
+		if bt.Level.ByteArrayTest[n] != byte((n*n*255+n*7)%100) {
+			t.Fatalf("expected %d at index %d, got %d", v, n, bt.Level.ByteArrayTest[n])
+		}
+	}
+
+	if bt.Level.NestedCompound.Ham.Name != "Hampus" {
+		t.Fatalf("expected \"Hampus\", got \"%s\"", bt.Level.NestedCompound.Ham.Name)
+	}
+
+	if bt.Level.NestedCompound.Ham.Value != 0.75 {
+		t.Fatalf("expected 0.75, got %f", bt.Level.NestedCompound.Ham.Value)
+	}
+
+	if bt.Level.NestedCompound.Egg.Name != "Eggbert" {
+		t.Fatalf("expected \"Eggbert\", got \"%s\"", bt.Level.NestedCompound.Egg.Name)
+	}
+
+	if bt.Level.NestedCompound.Egg.Value != 0.5 {
+		t.Fatalf("expected 0.5, got %f", bt.Level.NestedCompound.Egg.Value)
+	}
+
+	if len(bt.Level.ListTestLong) != 5 {
+		t.Fatalf("expected len=5, got %d", len(bt.Level.ListTestLong))
+	}
+
+	for i := range 5 {
+		v := int64(11 + i)
+
+		if bt.Level.ListTestLong[i] != v {
+			t.Fatalf("expected %d at index %d, got %d", v, i, bt.Level.ListTestLong[i])
+		}
+	}
+
+	if len(bt.Level.ListTestCompound) != 2 {
+		t.Fatalf("expected len=2, got %d", len(bt.Level.ListTestCompound))
+	}
 }
 
-func TestReadHelloWorld(t *testing.T) {
-	f, err := os.Open("../testdata/hello_world.nbt")
+func TestDecodeNanValue(t *testing.T) {
+	f, err := os.Open("../testdata/nan-value.dat")
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 
-	bs, err := io.ReadAll(f)
-
-	if err != nil {
-		t.Fatal("error reading file", err)
-	}
-
-	d := newDecoder(bs)
-
-	res, err := d.readNextTag(-1)
+	tag, err := newDecoder(f).decode()
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Logf("%+v", res)
-}
+	listTag, ok := tag.Find("Pos")
 
-func TestReadBigNbt(t *testing.T) {
-	f, err := os.Open("../testdata/bigtest.nbt")
-
-	if err != nil {
-		t.Fatal(err)
+	if !ok {
+		t.Fatal("Pos list tag not found")
 	}
 
-	defer f.Close()
+	l, ok := listTag.Value.(List)
 
-	bs, err := io.ReadAll(f)
-
-	if err != nil {
-		t.Fatal("error reading file", err)
+	if !ok {
+		t.Fatal("tag value not a List")
 	}
 
-	d := newDecoder(bs)
+	listItem1Value, ok := l[1].Value.(float64)
 
-	res, err := d.readNextTag(-1)
-
-	if err != nil {
-		t.Fatal(err)
+	if !ok {
+		t.Fatal("tag value not a float64")
 	}
 
-	t.Logf("%+v", res)
-}
-
-func TestReadNextTag(t *testing.T) {
-	bs := []byte{8, 0, 4, 't', 'e', 's', 't', 0, 2, 'h', 'i'}
-
-	d := newDecoder(bs)
-
-	res, err := d.readNextTag(-1)
-
-	if err != nil {
-		t.Fatal(err)
+	if !math.IsNaN(listItem1Value) {
+		t.Fatalf("expected NaN, got %f", listItem1Value)
 	}
-
-	t.Logf("%+v", res)
 }

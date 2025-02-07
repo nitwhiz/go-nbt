@@ -6,12 +6,18 @@ import (
 	"io"
 )
 
+var zeroBytes = []byte{0}
+
 type encoder struct {
 	w io.Writer
 }
 
-func newEncoder(w io.Writer) *encoder {
-	return &encoder{w: w}
+func newEncoder(w io.Writer) (e *encoder) {
+	e = &encoder{
+		w: w,
+	}
+
+	return
 }
 
 func (e *encoder) writeType(t *Tag) (err error) {
@@ -42,23 +48,25 @@ func (e *encoder) writeBE(v any) (err error) {
 
 func (e *encoder) writePayload(t *Tag) (err error) {
 	switch t.Type {
-	case TagByte:
+	case TypeEnd:
+		_, err = e.w.Write(zeroBytes)
+	case TypeByte:
 		err = e.writeBE(t.Value.(int8))
-	case TagShort:
+	case TypeShort:
 		err = e.writeBE(t.Value.(int16))
-	case TagInt:
+	case TypeInt:
 		err = e.writeBE(t.Value.(int32))
-	case TagLong:
+	case TypeLong:
 		err = e.writeBE(t.Value.(int64))
-	case TagFloat:
+	case TypeFloat:
 		err = e.writeBE(t.Value.(float32))
-	case TagDouble:
+	case TypeDouble:
 		err = e.writeBE(t.Value.(float64))
-	case TagCompound:
+	case TypeCompound:
 		tagCompound := t.Value.(Compound)
 
 		for _, tag := range tagCompound {
-			if err = e.encode(tag, true); err != nil {
+			if err = e.encodeTag(tag, true); err != nil {
 				return
 			}
 		}
@@ -66,9 +74,9 @@ func (e *encoder) writePayload(t *Tag) (err error) {
 		if _, err = e.w.Write([]byte{0x00}); err != nil {
 			return
 		}
-	case TagList:
+	case TypeList:
 		tagList := t.Value.(List)
-		size := uint32(len(tagList))
+		size := int32(len(tagList))
 
 		if size == 0 {
 			err = fmt.Errorf("nbt: cannot encode empty list")
@@ -86,20 +94,20 @@ func (e *encoder) writePayload(t *Tag) (err error) {
 		}
 
 		for _, tagListItem := range tagList {
-			if err = e.encode(tagListItem, false); err != nil {
+			if err = e.encodeTag(tagListItem, false); err != nil {
 				return
 			}
 		}
-	case TagByteArray:
-		size := uint32(len(t.Value.([]byte)))
+	case TypeByteArray:
+		size := int32(len(t.Value.([]byte)))
 
 		if err = e.writeBE(size); err != nil {
 			return
 		}
 
 		_, err = e.w.Write(t.Value.([]byte))
-	case TagString:
-		size := uint16(len(t.Value.(string)))
+	case TypeString:
+		size := int16(len(t.Value.(string)))
 
 		if err = e.writeBE(size); err != nil {
 			return
@@ -113,7 +121,7 @@ func (e *encoder) writePayload(t *Tag) (err error) {
 	return
 }
 
-func (e *encoder) encode(t *Tag, named bool) (err error) {
+func (e *encoder) encodeTag(t *Tag, named bool) (err error) {
 	if named {
 		if err = e.writeType(t); err != nil {
 			return
@@ -125,4 +133,8 @@ func (e *encoder) encode(t *Tag, named bool) (err error) {
 	}
 
 	return e.writePayload(t)
+}
+
+func (e *encoder) encode(t *Tag) (err error) {
+	return e.encodeTag(t, true)
 }
