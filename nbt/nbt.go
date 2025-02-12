@@ -134,7 +134,7 @@ func tagAsString(t *Tag, skipName bool, depth int) string {
 	return prefix + res + "\n"
 }
 
-func unmarshalTag(v any, tag *Tag) (err error) {
+func UnmarshalTag(v any, tag *Tag) (err error) {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
 
@@ -154,7 +154,7 @@ func unmarshalTag(v any, tag *Tag) (err error) {
 
 				if ok {
 					if field.Type.Kind() == reflect.Struct {
-						if err = unmarshalTag(val.Field(i).Addr().Interface(), foundTag); err != nil {
+						if err = UnmarshalTag(val.Field(i).Addr().Interface(), foundTag); err != nil {
 							return
 						}
 					} else if field.Type.Kind() == reflect.Slice {
@@ -163,7 +163,7 @@ func unmarshalTag(v any, tag *Tag) (err error) {
 							s := reflect.MakeSlice(reflect.SliceOf(field.Type.Elem()), len(listValues), len(listValues))
 
 							for i := 0; i < len(listValues); i++ {
-								if err = unmarshalTag(s.Index(i).Addr().Interface(), listValues[i]); err != nil {
+								if err = UnmarshalTag(s.Index(i).Addr().Interface(), listValues[i]); err != nil {
 									return
 								}
 							}
@@ -306,7 +306,7 @@ func UnmarshalReader(r io.Reader, v any) error {
 		return nil
 	}
 
-	return unmarshalTag(v, &Tag{
+	return UnmarshalTag(v, &Tag{
 		Type: TypeCompound,
 		Name: nil,
 		Value: Compound{
