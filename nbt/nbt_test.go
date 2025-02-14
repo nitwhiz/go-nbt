@@ -24,11 +24,15 @@ type bigTest struct {
 				Value float32 `nbt:"value"`
 			} `nbt:"egg"`
 		} `nbt:"nested compound test"`
-		ListTestLong     []int64 `nbt:"listTest (long)"`
-		ByteTest         int8    `nbt:"byteTest"`
-		ListTestCompound []*Tag  `nbt:"listTest (compound)"`
-		ByteArrayTest    []byte  `nbt:"byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, starting with n=0 (0, 62, 34, 16, 8, ...))"`
-		DoubleTest       float64 `nbt:"doubleTest"`
+		ListTestLong             []int64 `nbt:"listTest (long)"`
+		ByteTest                 int8    `nbt:"byteTest"`
+		ListTestCompoundAsTag    []*Tag  `nbt:"listTest (compound)"`
+		ListTestCompoundAsStruct []struct {
+			Name      string `nbt:"name"`
+			CreatedOn int64  `nbt:"created-on"`
+		} `nbt:"listTest (compound)"`
+		ByteArrayTest []byte  `nbt:"byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, starting with n=0 (0, 62, 34, 16, 8, ...))"`
+		DoubleTest    float64 `nbt:"doubleTest"`
 	} `nbt:"Level"`
 }
 
@@ -145,8 +149,12 @@ func TestUnmarshalBigTest(t *testing.T) {
 		}
 	}
 
-	if len(bt.Level.ListTestCompound) != 2 {
-		t.Fatalf("expected len=2, got %d", len(bt.Level.ListTestCompound))
+	if len(bt.Level.ListTestCompoundAsTag) != 2 {
+		t.Fatalf("expected len=2, got %d", len(bt.Level.ListTestCompoundAsTag))
+	}
+
+	if len(bt.Level.ListTestCompoundAsStruct) != 2 {
+		t.Fatalf("expected len=2, got %d", len(bt.Level.ListTestCompoundAsStruct))
 	}
 }
 
