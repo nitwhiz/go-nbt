@@ -2,6 +2,7 @@ package nbt
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -33,6 +34,18 @@ type Tag struct {
 	Type  int
 	Name  []byte
 	Value any
+}
+
+func (t *Tag) MarshalJSON() (bs []byte, err error) {
+	return json.Marshal(struct {
+		Type  int    `json:"type"`
+		Name  string `json:"name"`
+		Value any    `json:"value"`
+	}{
+		Type:  t.Type,
+		Name:  string(t.Name),
+		Value: t.Value,
+	})
 }
 
 func (t *Tag) String() string {
