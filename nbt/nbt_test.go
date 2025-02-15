@@ -26,7 +26,7 @@ type bigTest struct {
 		} `nbt:"nested compound test"`
 		ListTestLong             []int64 `nbt:"listTest (long)"`
 		ByteTest                 int8    `nbt:"byteTest"`
-		ListTestCompoundAsTag    []*Tag  `nbt:"listTest (compound)"`
+		ListTestCompoundAsTag    List    `nbt:"listTest (compound)"`
 		ListTestCompoundAsStruct []struct {
 			Name      string `nbt:"name"`
 			CreatedOn int64  `nbt:"created-on"`
@@ -155,6 +155,22 @@ func TestUnmarshalBigTest(t *testing.T) {
 
 	if len(bt.Level.ListTestCompoundAsStruct) != 2 {
 		t.Fatalf("expected len=2, got %d", len(bt.Level.ListTestCompoundAsStruct))
+	}
+
+	if bt.Level.ListTestCompoundAsStruct[0].Name != "Compound tag #0" {
+		t.Fatalf("expected Compound tag #0, got %s", bt.Level.ListTestCompoundAsStruct[0].Name)
+	}
+
+	if bt.Level.ListTestCompoundAsStruct[0].CreatedOn != 1264099775885 {
+		t.Fatalf("expected 1264099775885, got %d", bt.Level.ListTestCompoundAsStruct[0].CreatedOn)
+	}
+
+	if bt.Level.ListTestCompoundAsStruct[1].Name != "Compound tag #1" {
+		t.Fatalf("expected Compound tag #1, got %s", bt.Level.ListTestCompoundAsStruct[1].Name)
+	}
+
+	if bt.Level.ListTestCompoundAsStruct[1].CreatedOn != 1264099775885 {
+		t.Fatalf("expected 1264099775885, got %d", bt.Level.ListTestCompoundAsStruct[1].CreatedOn)
 	}
 }
 

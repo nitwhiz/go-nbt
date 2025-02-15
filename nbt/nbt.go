@@ -184,6 +184,10 @@ func UnmarshalTag(v any, tag *Tag) (err error) {
 							val.Field(i).Set(s)
 						case []byte:
 							val.Field(i).Set(reflect.ValueOf(listValues))
+						case []int32:
+							val.Field(i).Set(reflect.ValueOf(listValues))
+						case []int64:
+							val.Field(i).Set(reflect.ValueOf(listValues))
 						}
 					} else {
 						val.Field(i).Set(reflect.ValueOf(foundTag.Value))
@@ -241,6 +245,7 @@ func marshalValue(dstTag *Tag, v any, root bool) (err error) {
 			dstTag.Type = TypeByteArray
 			dstTag.Value = val.Bytes()
 		default:
+			// todo: Int_Array and Long_Array will be marshalled as lists. This might not be what we want.
 			values := make(List, 0, val.Len())
 
 			for i := 0; i < val.Len(); i++ {
