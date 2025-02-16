@@ -205,6 +205,12 @@ func UnmarshalTag(v any, tag *Tag) (err error) {
 		}
 	}
 
+	if u, ok := v.(Unmarshaler); ok {
+		if err = u.UnmarshalTag(tag); err != nil {
+			return
+		}
+	}
+
 	return
 }
 

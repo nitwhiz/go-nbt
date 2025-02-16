@@ -6,27 +6,36 @@ import (
 	"testing"
 )
 
+type nestedCompound struct {
+	Ham struct {
+		Name  string  `nbt:"name"`
+		Value float32 `nbt:"value"`
+	} `nbt:"ham"`
+	Egg struct {
+		Name  string  `nbt:"name"`
+		Value float32 `nbt:"value"`
+	} `nbt:"egg"`
+	ValueFromUnmarshaler string
+}
+
+func (n *nestedCompound) UnmarshalTag(_ *Tag) error {
+	n.ValueFromUnmarshaler = "Hello Unmarshaler!"
+
+	return nil
+}
+
 type bigTest struct {
 	Level struct {
-		ShortTest      int16   `nbt:"shortTest"`
-		LongTest       int64   `nbt:"longTest"`
-		FloatTest      float32 `nbt:"floatTest"`
-		StringTest     string  `nbt:"stringTest"`
-		IntTest        int32   `nbt:"intTest"`
-		RandomField    string
-		NestedCompound struct {
-			Ham struct {
-				Name  string  `nbt:"name"`
-				Value float32 `nbt:"value"`
-			} `nbt:"ham"`
-			Egg struct {
-				Name  string  `nbt:"name"`
-				Value float32 `nbt:"value"`
-			} `nbt:"egg"`
-		} `nbt:"nested compound test"`
-		ListTestLong             []int64 `nbt:"listTest (long)"`
-		ByteTest                 int8    `nbt:"byteTest"`
-		ListTestCompoundAsTag    List    `nbt:"listTest (compound)"`
+		ShortTest                int16   `nbt:"shortTest"`
+		LongTest                 int64   `nbt:"longTest"`
+		FloatTest                float32 `nbt:"floatTest"`
+		StringTest               string  `nbt:"stringTest"`
+		IntTest                  int32   `nbt:"intTest"`
+		RandomField              string
+		NestedCompound           nestedCompound `nbt:"nested compound test"`
+		ListTestLong             []int64        `nbt:"listTest (long)"`
+		ByteTest                 int8           `nbt:"byteTest"`
+		ListTestCompoundAsTag    List           `nbt:"listTest (compound)"`
 		ListTestCompoundAsStruct []struct {
 			Name      string `nbt:"name"`
 			CreatedOn int64  `nbt:"created-on"`
@@ -171,6 +180,10 @@ func TestUnmarshalBigTest(t *testing.T) {
 
 	if bt.Level.ListTestCompoundAsStruct[1].CreatedOn != 1264099775885 {
 		t.Fatalf("expected 1264099775885, got %d", bt.Level.ListTestCompoundAsStruct[1].CreatedOn)
+	}
+
+	if bt.Level.NestedCompound.ValueFromUnmarshaler != "Hello Unmarshaler!" {
+		t.Fatalf("expected \"Hello Unmarshaler!\", got \"%s\"", bt.Level.NestedCompound.ValueFromUnmarshaler)
 	}
 }
 

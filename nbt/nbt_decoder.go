@@ -18,6 +18,10 @@ type decoder struct {
 	numBuf *bytes.Buffer
 }
 
+type Unmarshaler interface {
+	UnmarshalTag(t *Tag) error
+}
+
 func newDecoder(r io.Reader) (d *decoder) {
 	d = &decoder{
 		r:      bufio.NewReader(r),
